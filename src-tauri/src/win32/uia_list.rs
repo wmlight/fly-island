@@ -209,6 +209,7 @@ pub(crate) fn click_class_named_row(
                 // a contact match means the contact's name starts the row's name.
                 if element
                     .CurrentName()?
+                    .to_string()
                     .trim_start()
                     .starts_with(name)
                 {
