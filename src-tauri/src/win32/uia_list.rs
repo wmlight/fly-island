@@ -148,6 +148,133 @@ fn rows_from(elements: &IUIAutomationElementArray, prefix: &str, cached: bool) -
     }
 }
 
+/// Sends WM_GETOBJECT to Chromium render windows under `window` (Electron / CEF), which turns
+/// on Chromium's accessibility tree so UIA can see the web content inside. Chromium builds the
+/// tree lazily; the call returns the number of render windows probed.
+pub(crate) fn enable_chromium_accessibility(window: HWND) -> usize {
+    let mut probed = 0usize;
+    // WM_GETOBJECT with OBJID_CLIENT asks Chromium for its accessible object; rendering the
+    // tree on demand is what Chromium does when a screen reader first queries it.
+    const WM_GETOBJECT: u32 = 0x003D;
+    const OBJID_CLIENT: isize = 0xFFFFFFFC;
+    // SAFETY: sending a documented message to windows of the target process; the closure only
+    // reads the class name and process id and sends to matching windows.
+    unsafe {
+        let _ = window::for_each_child_window(window, |child| {
+            if window::class_name(child) == "Chrome_RenderWidgetHostHWND" {
+                window::send_message(child, WM_GETOBJECT, 0, OBJID_CLIENT);
+                probed += 1;
+            }
+        });
+    }
+    probed
+}
+
+/// Clicks a row identified by its class name and full accessible name (QQNT's
+/// `recent-contact-item` rows have no automation id). The name must match exactly one row.
+pub(crate) fn click_class_named_row(
+    window: HWND,
+    class_name: &str,
+    name: &str,
+    still_allowed: impl Fn() -> bool,
+) -> Result<(), String> {
+    if window::foreground_window() != window || !still_allowed() {
+        return Err("foreground or preview permission changed".into());
+    }
+    let automation = Automation::new().ok_or("UI Automation initialization failed")?;
+    enum Target {
+        Selected,
+        Click(POINT),
+        Wait(&'static str),
+    }
+    let find = || -> windows::core::Result<Target> {
+        let client = &automation.client;
+        // SAFETY: COM is initialized by Automation and all UIA references remain on this thread.
+        // The only raw output pointer is the address of a writable POINT.
+        unsafe {
+            let root = client.ElementFromHandle(window)?;
+            let class_condition = client.CreatePropertyCondition(
+                UIA_ClassNamePropertyId,
+                &VARIANT::from(class_name),
+            )?;
+            let candidates = root.FindAll(TreeScope_Descendants, &class_condition)?;
+            let mut row: Option<IUIAutomationElement> = None;
+            let mut matched = 0i32;
+            for index in 0..candidates.Length()?.min(MAX_ROWS) {
+                let element = candidates.GetElement(index)?;
+                if element.CurrentName()?.is_empty() {
+                    continue;
+                }
+                // The accessible name holds the whole row text (contact, time, preview);
+                // a contact match means the contact's name starts the row's name.
+                if element
+                    .CurrentName()?
+                    .to_string_lossy()
+                    .trim_start()
+                    .starts_with(name)
+                {
+                    row = Some(element);
+                    matched += 1;
+                }
+            }
+            if matched == 0 {
+                return Ok(Target::Wait("row not found"));
+            }
+            if matched > 1 {
+                return Ok(Target::Wait("more than one matching row"));
+            }
+            let row = row.unwrap_or_default();
+            if row.CurrentIsOffscreen()?.as_bool() {
+                if window::foreground_window() != window || !still_allowed() {
+                    return Ok(Target::Wait("foreground or preview permission changed before scrolling"));
+                }
+                let scroll: IUIAutomationScrollItemPattern =
+                    row.GetCurrentPatternAs(UIA_ScrollItemPatternId)?;
+                scroll.ScrollIntoView()?;
+                std::thread::sleep(std::time::Duration::from_millis(60));
+                let before = row.CurrentBoundingRectangle()?;
+                std::thread::sleep(std::time::Duration::from_millis(60));
+                if before != row.CurrentBoundingRectangle()? {
+                    return Ok(Target::Wait("row layout is still moving after scrolling"));
+                }
+            }
+            if row.CurrentIsOffscreen()?.as_bool() {
+                return Ok(Target::Wait("row remains offscreen"));
+            }
+            let bounds = row.CurrentBoundingRectangle()?;
+            if bounds.left >= bounds.right || bounds.top >= bounds.bottom {
+                return Ok(Target::Wait("row has empty bounds"));
+            }
+            let mut points = row_click_points(bounds);
+            let mut clickable = POINT::default();
+            if row.GetClickablePoint(&mut clickable).is_ok_and(|found| found.as_bool())
+                && clickable.x >= bounds.left && clickable.x < bounds.right
+                && clickable.y >= bounds.top && clickable.y < bounds.bottom
+            {
+                points.insert(0, clickable);
+            }
+            let mut reason = "point does not hit the target UIA row";
+            for point in points {
+                if let Some(blocked) = input::click_block_reason(window, point) {
+                    reason = blocked;
+                } else if point_hits_row(client, point, &row) {
+                    return Ok(Target::Click(point));
+                }
+            }
+            Ok(Target::Wait(reason))
+        }
+    };
+    match find().map_err(|error| format!("UI Automation lookup failed: {error}"))? {
+        Target::Selected if still_allowed() => Ok(()),
+        Target::Click(point) if still_allowed() => {
+            if input::click_in_foreground(window, point) { Ok(()) }
+            else { Err(input::click_block_reason(window, point).unwrap_or("mouse input failed or cursor moved").into()) }
+        },
+        Target::Wait(reason) => Err(reason.into()),
+        _ => Err("preview permission changed before activation".into()),
+    }
+}
+
 /// Clicks an unambiguous row by automation ID. Qt selection alone does not open its conversation.
 /// A row that is already selected counts as open and is left alone: WeChat closes the open
 /// conversation when its selected row is clicked again.

@@ -3,6 +3,7 @@
 mod history;
 mod launcher;
 mod listener;
+mod session;
 
 #[cfg(test)]
 mod tests;
@@ -275,10 +276,21 @@ fn publish(
 }
 
 #[tauri::command]
-pub async fn open_qq() -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(|| activate_existing_qq(&qq_executable()?))
-        .await
-        .map_err(|error| format!("打开 QQ 的线程失败：{error}"))?
+pub async fn open_qq(contact: Option<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || match contact.as_deref() {
+        // An exact conversation jump does not need the executable: it works on
+        // the running client. Fall back to the plain launcher when QQ is closed.
+        Some(contact) if !contact.trim().is_empty() => match session::open_session(contact) {
+            Ok(()) => Ok(()),
+            Err(reason) if reason.contains("QQ 未运行") || reason.contains("尚未恢复可交互") => {
+                activate_existing_qq(&qq_executable()?)
+            },
+            Err(reason) => Err(reason),
+        },
+        _ => activate_existing_qq(&qq_executable()?),
+    })
+    .await
+    .map_err(|error| format!("打开 QQ 的线程失败：{error}"))?
 }
 
 /// This module's Tauri commands. `lib.rs` chains every module's list into one

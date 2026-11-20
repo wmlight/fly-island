@@ -139,9 +139,9 @@ export function useQQNotifications(canPreview: boolean, previewSeconds = 5) {
     setPreviewWindow(null);
   }), [acceptSnapshot, run]);
 
-  /** Opening from one contact's message reads that contact's messages; the others stay. */
+  /** Opening from one contact's message jumps to that conversation and reads its messages; the others stay. */
   const openQQ = useCallback((contact?: string) => run(async () => {
-    await launchQQ();
+    await launchQQ(contact);
     setPreviewWindow(null);
     // QQ is already open; a list that failed to update is not worth an error.
     if (contact !== undefined) await dismissQQContact(contact).then(acceptSnapshot).catch(() => undefined);

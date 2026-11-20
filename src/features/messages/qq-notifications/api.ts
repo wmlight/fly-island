@@ -51,8 +51,8 @@ export function dismissQQContact(title: string) {
   return invoke<QQNotificationSnapshot>("dismiss_qq_contact", { title });
 }
 
-export function launchQQ() {
-  return invoke("open_qq");
+export function launchQQ(contact?: string) {
+  return invoke("open_qq", { contact });
 }
 
 export function listenQQNotificationsChanged(handler: EventCallback<QQNotificationEvent>) {

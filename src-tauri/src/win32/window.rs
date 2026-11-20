@@ -14,10 +14,10 @@ use windows::{
             Input::KeyboardAndMouse::IsWindowEnabled,
             Shell::{Shell_NotifyIconGetRect, NOTIFYICONIDENTIFIER},
             WindowsAndMessaging::{
-                AllowSetForegroundWindow, BringWindowToTop, EnumWindows, FlashWindowEx, IsGUIThread,
+                AllowSetForegroundWindow, BringWindowToTop, EnumChildWindows, EnumWindows, FlashWindowEx, IsGUIThread,
                 FLASHWINFO, FLASHW_ALL, FLASHW_TIMERNOFG, GetClassNameW, GetCursorPos,
                 GetForegroundWindow, GetWindow, GetWindowLongPtrW, GetWindowPlacement,
-                GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, GetAncestor, IsIconic, IsWindowVisible, SendMessageTimeoutW,
+                GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, GetAncestor, IsIconic, IsWindowVisible, SendMessageTimeoutW, SendMessageW,
                 SetForegroundWindow, ShowWindow, ShowWindowAsync, GA_ROOTOWNER, GWL_EXSTYLE, GWL_STYLE, GW_OWNER, SMTO_ABORTIFHUNG,
                 SMTO_BLOCK, SMTO_ERRORONEXIT, SW_RESTORE, SW_SHOW, WINDOWPLACEMENT, WM_NULL,
                 WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
@@ -51,6 +51,41 @@ pub(crate) fn for_each_top_level_window(mut visit: impl FnMut(HWND)) -> windows:
             LPARAM(&mut visit as *mut &mut dyn FnMut(HWND) as isize),
         )
     }
+}
+
+/// Calls `visit` for every child window of `window`, in z-order. Fails only when
+/// the enumeration itself fails.
+pub(crate) fn for_each_child_window(
+    window: HWND,
+    mut visit: impl FnMut(HWND),
+) -> windows::core::Result<()> {
+    unsafe extern "system" fn visit_child(child: HWND, context: LPARAM) -> BOOL {
+        // SAFETY: `context` is the address of the `&mut dyn FnMut(HWND)` below.
+        // EnumChildWindows calls back synchronously on this thread, before
+        // `for_each_child_window` returns, so the reference is live and not
+        // aliased while the callback runs.
+        let visit = unsafe { &mut *(context.0 as *mut &mut dyn FnMut(HWND)) };
+        visit(child);
+        true.into()
+    }
+
+    let mut visit: &mut dyn FnMut(HWND) = &mut visit;
+    // SAFETY: `visit_child` matches WNDENUMPROC and only reads the context
+    // pointer documented above, which outlives the call.
+    unsafe {
+        EnumChildWindows(
+            window,
+            Some(visit_child),
+            LPARAM(&mut visit as *mut &mut dyn FnMut(HWND) as isize),
+        )
+    }
+}
+
+/// Sends a message to `window` and waits for the result, giving up on a hung window.
+pub(crate) fn send_message(window: HWND, message: u32, wparam: usize, lparam: isize) -> isize {
+    // SAFETY: SendMessageW to a window handle obtained from enumeration; the
+    // target may be hung, so this must not be used on the UI thread of this process.
+    unsafe { SendMessageW(window, message, WPARAM(wparam), LPARAM(lparam)) }
 }
 
 /// Title of `window`, truncated to `capacity - 1` UTF-16 units; empty when the
