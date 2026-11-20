@@ -90,3 +90,8 @@
   display: inline-flex;
   align-items: center;
 }
+
+/* The Play triangle is optically smaller than Pause's bars at the same box; nudge it out. */
+.music-mini-transport__play {
+  margin-left: 1px;
+}

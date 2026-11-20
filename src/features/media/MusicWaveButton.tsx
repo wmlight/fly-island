@@ -51,7 +51,7 @@ export function MusicMiniTransport({
       onPointerCancel={onDragUp}
     >
       <button className="music-mini-transport__step" type="button" aria-label={labelPrevious} disabled={canPrevious === false && isAvailable} onClick={(event) => { event.stopPropagation(); onPrevious(); }}>
-        <SkipBack size={15} strokeWidth={1.6} fill="currentColor" />
+        <SkipBack size={16} strokeWidth={1.6} fill="currentColor" />
       </button>
       <MusicWaveButton
         isAvailable={isAvailable}
@@ -59,10 +59,10 @@ export function MusicMiniTransport({
         audioPeak={audioPeak}
         label={labelPlayPause}
         onClick={onPlayPause}
-        playPauseIcon={isPlaying ? <Pause size={15} strokeWidth={1.6} fill="currentColor" /> : <Play size={15} strokeWidth={1.6} fill="currentColor" />}
+        playPauseIcon={isPlaying ? <Pause size={17} strokeWidth={1.6} fill="currentColor" /> : <Play size={17} strokeWidth={1.6} fill="currentColor" className="music-mini-transport__play" />}
       />
       <button className="music-mini-transport__step" type="button" aria-label={labelNext} disabled={canNext === false && isAvailable} onClick={(event) => { event.stopPropagation(); onNext(); }}>
-        <SkipForward size={15} strokeWidth={1.6} fill="currentColor" />
+        <SkipForward size={16} strokeWidth={1.6} fill="currentColor" />
       </button>
     </div>
   );
