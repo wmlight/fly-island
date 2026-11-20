@@ -13,7 +13,7 @@ import { CollapsedMessageContent } from "../../features/messages/CollapsedMessag
 import { MessageSourceIcon } from "../../features/messages/MessageSourceIcon";
 import { MessageNoticeReader } from "../../features/messages/MessageNoticeReader";
 // After CollapsedMessageContent, matching the original stylesheet order.
-import { MusicWaveButton } from "../../features/media/MusicWaveButton";
+import { MusicMiniTransport } from "../../features/media/MusicWaveButton";
 import { isOfficeSource, messagePreviewText, type MessagePreview, type MessageSource } from "../../features/messages/messagePreview";
 import { openOfficeClient } from "../../features/messages/office-im/useOfficeIm";
 import type { MailController } from "../../features/messages/mail/MailPanel";
@@ -61,8 +61,10 @@ type IslandCollapsedBarProps = {
    */
   agentSessionCount: number | null;
   mediaState: MediaState;
-  /** False while music is switched off, which hides the waveform button. */
+  /** False while music is switched off, which hides the mini transport. */
   showMusic: boolean;
+  /** Sends a transport command (play/pause, previous, next) through SMTC. */
+  onMediaCommand: (command: "media_play_pause" | "media_next" | "media_previous") => void;
   /** Files on the shelf, or null when the count is not shown. */
   shelfCount: number | null;
   /** Claude's or Codex's usage reaching the alert level, or resetting; it takes the place of the text while shown. */
@@ -102,6 +104,7 @@ export function IslandCollapsedBar({
   agentSessionCount,
   mediaState,
   showMusic,
+  onMediaCommand,
   shelfCount,
   quotaAlert = null,
   agentVisualState,
@@ -246,13 +249,23 @@ export function IslandCollapsedBar({
         <span>{shelfCount}</span>
       </button>
       ),
-    music: showMusic && (
-      <MusicWaveButton
+    music: (
+      <MusicMiniTransport
+        show={showMusic}
         isAvailable={mediaState.available || mediaState.audioActive}
         isPlaying={isMusicPlaying}
         audioPeak={mediaState.audioPeak}
-        label={t.island.openMusic}
-        onClick={() => onOpenPage("music")}
+        canPrevious={mediaState.canPrevious}
+        canNext={mediaState.canNext}
+        onPrevious={() => onMediaCommand("media_previous")}
+        onPlayPause={() => onMediaCommand("media_play_pause")}
+        onNext={() => onMediaCommand("media_next")}
+        onDragDown={prepareWindowDrag}
+        onDragMove={handleWindowDragMove}
+        onDragUp={cancelWindowDrag}
+        labelPlayPause={isMusicPlaying ? t.music.pause : t.music.play}
+        labelPrevious={t.music.previousTrack}
+        labelNext={t.music.nextTrack}
       />
       ),
     agents: agentSessionCount === null ? (

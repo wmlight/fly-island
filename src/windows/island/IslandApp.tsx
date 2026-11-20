@@ -241,6 +241,7 @@ export function IslandApp() {
         agentSession={agentSession}
         activeAgentSessionCount={activeAgentSessionCount}
         mediaState={media.mediaState}
+        onMediaCommand={(command) => void media.runMediaCommand(command)}
         agentVisualState={agentVisualState}
         agentStatusLabel={agentStatusLabel}
         features={features}

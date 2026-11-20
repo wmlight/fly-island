@@ -74,6 +74,8 @@ type IslandShellProps = {
   /** Agent sessions still working, shown in place of the tuck dot while the AI Agent switch is on. */
   activeAgentSessionCount: number;
   mediaState: MediaState;
+  /** Sends a transport command (play/pause, previous, next) through SMTC. */
+  onMediaCommand: (command: "media_play_pause" | "media_next" | "media_previous") => void;
   agentVisualState: AgentVisualState;
   agentStatusLabel: string;
   /** Modules switched on; the header and collapsed bar hide the rest. */
@@ -134,6 +136,7 @@ export function IslandShell({
   agentSession,
   activeAgentSessionCount,
   mediaState,
+  onMediaCommand,
   agentVisualState,
   agentStatusLabel,
   features,
@@ -247,6 +250,7 @@ export function IslandShell({
           agentSessionCount={features.agents ? activeAgentSessionCount : null}
           mediaState={mediaState}
           showMusic={features.music}
+          onMediaCommand={onMediaCommand}
           shelfCount={shelfCount}
           quotaAlert={quotaAlert}
           agentVisualState={agentVisualState}
