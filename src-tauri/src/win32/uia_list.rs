@@ -209,7 +209,6 @@ pub(crate) fn click_class_named_row(
                 // a contact match means the contact's name starts the row's name.
                 if element
                     .CurrentName()?
-                    .to_string_lossy()
                     .trim_start()
                     .starts_with(name)
                 {
@@ -223,7 +222,9 @@ pub(crate) fn click_class_named_row(
             if matched > 1 {
                 return Ok(Target::Wait("more than one matching row"));
             }
-            let row = row.unwrap_or_default();
+            let Some(row) = row else {
+                return Ok(Target::Wait("row not found"));
+            };
             if row.CurrentIsOffscreen()?.as_bool() {
                 if window::foreground_window() != window || !still_allowed() {
                     return Ok(Target::Wait("foreground or preview permission changed before scrolling"));

@@ -74,18 +74,19 @@ pub(crate) fn for_each_child_window(
     // pointer documented above, which outlives the call.
     unsafe {
         EnumChildWindows(
-            window,
+            Some(window),
             Some(visit_child),
             LPARAM(&mut visit as *mut &mut dyn FnMut(HWND) as isize),
         )
     }
+    .ok()
 }
 
 /// Sends a message to `window` and waits for the result, giving up on a hung window.
 pub(crate) fn send_message(window: HWND, message: u32, wparam: usize, lparam: isize) -> isize {
     // SAFETY: SendMessageW to a window handle obtained from enumeration; the
     // target may be hung, so this must not be used on the UI thread of this process.
-    unsafe { SendMessageW(window, message, WPARAM(wparam), LPARAM(lparam)) }
+    unsafe { SendMessageW(window, message, Some(WPARAM(wparam)), Some(LPARAM(lparam))) }.0
 }
 
 /// Title of `window`, truncated to `capacity - 1` UTF-16 units; empty when the
