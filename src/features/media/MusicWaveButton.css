@@ -19,7 +19,7 @@
     opacity 140ms ease;
 }
 
-.music-wave-button span {
+.music-wave-button .music-wave-button__bar {
   width: 3px;
   height: 13px;
   flex: 0 0 auto;

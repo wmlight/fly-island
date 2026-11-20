@@ -139,6 +139,7 @@ export function MusicWaveButton({
       ) : barScales.map((scale, index) => (
         <span
           key={index}
+          className="music-wave-button__bar"
           style={
             {
               "--wave-scale": scale.toFixed(3),
