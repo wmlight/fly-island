@@ -59,7 +59,15 @@ export function MusicMiniTransport({
         audioPeak={audioPeak}
         label={labelPlayPause}
         onClick={onPlayPause}
-        playPauseIcon={isPlaying ? <Pause size={17} strokeWidth={1.6} fill="currentColor" /> : <Play size={17} strokeWidth={1.6} fill="currentColor" className="music-mini-transport__play" />}
+        playPauseIcon={
+          isPlaying
+            ? <span className="music-mini-transport__wave-and-pause" aria-hidden="true">
+                <span className="music-wave-button__bar music-mini-transport__bar" style={{ "--wave-scale": "0.72", "--wave-opacity": "0.9" } as CSSProperties} />
+                <Pause size={17} strokeWidth={1.6} fill="currentColor" />
+                <span className="music-wave-button__bar music-mini-transport__bar" style={{ "--wave-scale": "0.42", "--wave-opacity": "0.9" } as CSSProperties} />
+              </span>
+            : <Play size={17} strokeWidth={1.6} fill="currentColor" className="music-mini-transport__play" />
+        }
       />
       <button className="music-mini-transport__step" type="button" aria-label={labelNext} disabled={canNext === false && isAvailable} onClick={(event) => { event.stopPropagation(); onNext(); }}>
         <SkipForward size={16} strokeWidth={1.6} fill="currentColor" />

@@ -91,6 +91,19 @@
   align-items: center;
 }
 
+/* Playing: a wave bar on each side of the pause icon keeps the mini transport's identity. */
+.music-mini-transport__wave-and-pause {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Narrower than the wave button's own bars so the group fits the 28px slot. */
+.music-mini-transport__bar {
+  width: 2px;
+  height: 11px;
+}
+
 /* The Play triangle is optically smaller than Pause's bars at the same box; nudge it out. */
 .music-mini-transport__play {
   margin-left: 1px;
